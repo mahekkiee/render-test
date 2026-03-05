@@ -1,17 +1,16 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, request, send_from_directory
 
 app = Flask(__name__)
 
-# Temporary storage (replace later with database)
 students = []
 
 @app.route("/")
 def home():
-    return render_template("app.html")
-
+    return send_from_directory(".", "app.html")
 
 @app.route("/submit", methods=["POST"])
 def submit():
+
     name = request.form.get("name")
     sapid = request.form.get("sapid")
     age = request.form.get("age")
@@ -26,15 +25,7 @@ def submit():
 
     students.append(student)
 
-    return jsonify({
-        "message": "Student data received",
-        "data": student
-    })
-
-
-@app.route("/students")
-def get_students():
-    return jsonify(students)
+    return f"Data received: {student}"
 
 
 if __name__ == "__main__":
