@@ -4,62 +4,69 @@ import os
 
 app = Flask(__name__)
 
-DATABASE_URL = os.getenv("DATABASE_URL")
+DATABASE_URL = os.environ.get("DATABASE_URL")
 
-conn = psycopg2.connect(DATABASE_URL)
-cursor = conn.cursor()
-
+def get_conn():
+    return psycopg2.connect(DATABASE_URL)
 
 @app.route("/")
 def home():
     return send_from_directory(".", "app.html")
 
-
 @app.route("/submit", methods=["POST"])
 def submit():
+    try:
+        name = request.form.get("name")
+        sapid = request.form.get("sapid")
+        age = request.form.get("age")
+        marks = request.form.get("marks")
 
-    name = request.form.get("name")
-    sapid = request.form.get("sapid")
-    age = request.form.get("age")
-    marks = request.form.get("marks")
+        conn = get_conn()
+        cur = conn.cursor()
 
-    cursor.execute(
-        "INSERT INTO students (name, sapid, age, marks) VALUES (%s,%s,%s,%s)",
-        (name, sapid, age, marks)
+        cur.execute(
+            "INSERT INTO students (name, sapid, age, marks) VALUES (%s,%s,%s,%s)",
+            (name, sapid, age, marks)
+        )
+
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        return "Student stored successfully"
+
+    except Exception as e:
+        return str(e)
+
+
+@app.route("/search")
+def search():
+    name = request.args.get("name")
+
+    conn = get_conn()
+    cur = conn.cursor()
+
+    cur.execute(
+        "SELECT name,sapid,age,marks FROM students WHERE LOWER(name) LIKE LOWER(%s)",
+        ('%' + name + '%',)
     )
 
-    conn.commit()
+    rows = cur.fetchall()
 
-    return "Student stored successfully"
+    cur.close()
+    conn.close()
 
-
-@app.route("/students")
-def get_students():
-
-    cursor.execute("SELECT name FROM students")
-    rows = cursor.fetchall()
-
-    names = [r[0] for r in rows]
-
-    return jsonify(names)
-
-
-@app.route("/student/<name>")
-def get_student(name):
-
-    cursor.execute(
-        "SELECT name, sapid, age, marks FROM students WHERE name=%s",
-        (name,)
-    )
-
-    row = cursor.fetchone()
-
-    if row:
-        return jsonify({
-            "name": row[0],
-            "sapid": row[1],
-            "age": row[2],
-            "marks": row[3]
+    data = []
+    for r in rows:
+        data.append({
+            "name": r[0],
+            "sapid": r[1],
+            "age": r[2],
+            "marks": r[3]
         })
 
-    return jsonify({"error": "student not found"})
+    return jsonify(data)
+
+
+if __name__ == "__main__":
+    app.run()
